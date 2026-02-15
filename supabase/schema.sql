@@ -59,6 +59,13 @@ CREATE TABLE IF NOT EXISTS deleted_albums (
 
 CREATE INDEX IF NOT EXISTS idx_deleted_albums_user ON deleted_albums(user_id);
 
+-- Rate limits: tracks per-user Spotify rate limit expiry to avoid repeated 429s
+CREATE TABLE IF NOT EXISTS rate_limits (
+  user_id TEXT PRIMARY KEY,
+  retry_after TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Schema migrations tracking
 CREATE TABLE IF NOT EXISTS schema_migrations (
   name TEXT PRIMARY KEY,

@@ -41,6 +41,16 @@ const migrations: Migration[] = [
       END $$;
     `,
   },
+  {
+    name: "003_add_rate_limits",
+    sql: `
+      CREATE TABLE IF NOT EXISTS rate_limits (
+        user_id TEXT PRIMARY KEY,
+        retry_after TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `,
+  },
 ];
 
 let migrationRan = false;

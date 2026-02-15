@@ -73,6 +73,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data ? rowsToAlbums(data) : []);
   }
 
+  // Check if we're still rate limited before hitting Spotify
+  const { data: rateLimit } = await supabase
+    .from("rate_limits")
+    .select("retry_after")
+    .eq("user_id", session.spotifyId)
+    .single();
+
+  if (rateLimit?.retry_after && new Date(rateLimit.retry_after) > new Date()) {
+    const { data: cachedAlbums } = await supabase
+      .from("saved_albums")
+      .select("*")
+      .eq("user_id", session.spotifyId)
+      .order("name");
+
+    if (cachedAlbums && cachedAlbums.length > 0) {
+      return NextResponse.json({
+        albums: rowsToAlbums(cachedAlbums),
+        warning: `Spotify is rate limiting requests. Available again at ${rateLimit.retry_after}. Showing cached albums.`,
+      });
+    }
+  }
+
+  // Clear expired rate limit
+  if (rateLimit?.retry_after && new Date(rateLimit.retry_after) <= new Date()) {
+    await supabase.from("rate_limits").delete().eq("user_id", session.spotifyId);
+  }
+
   // Full sync: fetch from Spotify, upsert to Supabase, return all
   try {
     let accessToken = session.accessToken;
@@ -159,12 +186,16 @@ export async function GET(request: NextRequest) {
     const retryAfterSeconds = (error as Error & { retryAfterSeconds?: number }).retryAfterSeconds;
     let warning: string | undefined;
     if (isRateLimit) {
-      if (retryAfterSeconds) {
-        const availableAt = new Date(Date.now() + retryAfterSeconds * 1000).toISOString();
-        warning = `Spotify is rate limiting requests. Available again at ${availableAt}. Showing cached albums.`;
-      } else {
-        warning = "Spotify is rate limiting requests. Showing cached albums.";
-      }
+      const availableAt = new Date(Date.now() + (retryAfterSeconds || 60) * 1000).toISOString();
+      warning = `Spotify is rate limiting requests. Available again at ${availableAt}. Showing cached albums.`;
+
+      // Persist rate limit so future requests skip Spotify entirely
+      await supabase
+        .from("rate_limits")
+        .upsert(
+          { user_id: session.spotifyId, retry_after: availableAt },
+          { onConflict: "user_id" }
+        );
     }
 
     // Fallback: return albums from Supabase if Spotify API fails
