@@ -1,10 +1,31 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, ReactNode } from "react";
 
 interface Message {
   role: "user" | "agent";
   text: string;
+}
+
+function renderMessageText(text: string): ReactNode {
+  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g);
+  return parts.map((part, i) => {
+    const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (match) {
+      return (
+        <a
+          key={i}
+          href={match[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-purple-400 underline hover:text-purple-300"
+        >
+          {match[1]}
+        </a>
+      );
+    }
+    return part;
+  });
 }
 
 export default function AgentChat() {
@@ -108,7 +129,7 @@ export default function AgentChat() {
                   : "bg-zinc-800 text-zinc-200"
               }`}
             >
-              {msg.text}
+              {msg.role === "agent" ? renderMessageText(msg.text) : msg.text}
             </div>
           </div>
         ))}
