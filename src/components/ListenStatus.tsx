@@ -6,52 +6,27 @@ interface ListenStatusProps {
 }
 
 export default function ListenStatus({ status, onChange }: ListenStatusProps) {
-  const cycle = () => {
-    if (status === null) onChange("to_listen");
-    else if (status === "to_listen") onChange("listened");
-    else onChange(null);
-  };
-
   return (
-    <button
-      onClick={cycle}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+    <select
+      value={status ?? ""}
+      onChange={(e) => {
+        const val = e.target.value;
+        onChange(val === "" ? null : (val as "to_listen" | "listened"));
+      }}
+      className={`px-3 py-2 rounded-lg text-sm font-medium border cursor-pointer appearance-none bg-no-repeat bg-[length:16px_16px] bg-[right_8px_center] pr-8 focus:outline-none focus:ring-1 focus:ring-zinc-500 ${
         status === "listened"
-          ? "bg-green-500/20 text-green-400 border border-green-500/30"
+          ? "bg-green-500/20 text-green-400 border-green-500/30"
           : status === "to_listen"
-          ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-          : "bg-zinc-800 text-zinc-500 border border-zinc-700 hover:border-zinc-600"
+          ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+          : "bg-zinc-800 text-zinc-400 border-zinc-700"
       }`}
-      title={
-        status === null
-          ? "Click to mark as 'To Listen'"
-          : status === "to_listen"
-          ? "Click to mark as 'Listened'"
-          : "Click to clear status"
-      }
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+      }}
     >
-      {status === "listened" ? (
-        <>
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-          Listened
-        </>
-      ) : status === "to_listen" ? (
-        <>
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          To Listen
-        </>
-      ) : (
-        <>
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-          </svg>
-          Not set
-        </>
-      )}
-    </button>
+      <option value="">Not set</option>
+      <option value="to_listen">To Listen</option>
+      <option value="listened">Listened</option>
+    </select>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { AlbumWithMetadata, Tag } from "@/types";
 import TagManager from "./TagManager";
@@ -29,13 +30,41 @@ export default function AlbumDetail({
 }: AlbumDetailProps) {
   const imageUrl = album.images[0]?.url;
   const artists = album.artists.map((a) => a.name).join(", ");
-  const albumTagIds = album.tags?.map((t) => t.id) || [];
+
+  // Local editable state
+  const [listenStatus, setListenStatus] = useState<"to_listen" | "listened" | null>(
+    album.metadata?.listen_status || null
+  );
+  const [rating, setRating] = useState<number | null>(album.metadata?.rating ?? null);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
+    album.tags?.map((t) => t.id) || []
+  );
+  const [saving, setSaving] = useState(false);
+
+  // Track if anything has changed
+  const originalStatus = album.metadata?.listen_status || null;
+  const originalRating = album.metadata?.rating ?? null;
+  const originalTagIds = album.tags?.map((t) => t.id) || [];
+  const hasChanges =
+    listenStatus !== originalStatus ||
+    rating !== originalRating ||
+    JSON.stringify([...selectedTagIds].sort()) !== JSON.stringify([...originalTagIds].sort());
 
   const handleTagToggle = (tagId: string, assigned: boolean) => {
-    const newTags = assigned
-      ? [...albumTagIds, tagId]
-      : albumTagIds.filter((id) => id !== tagId);
-    onUpdateMetadata(album.id, { tags: newTags });
+    setSelectedTagIds((prev) =>
+      assigned ? [...prev, tagId] : prev.filter((id) => id !== tagId)
+    );
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onUpdateMetadata(album.id, {
+      listen_status: listenStatus,
+      rating,
+      tags: selectedTagIds,
+    });
+    setSaving(false);
+    onClose();
   };
 
   return (
@@ -101,10 +130,8 @@ export default function AlbumDetail({
               Listen Status
             </h3>
             <ListenStatus
-              status={album.metadata?.listen_status || null}
-              onChange={(status) =>
-                onUpdateMetadata(album.id, { listen_status: status })
-              }
+              status={listenStatus}
+              onChange={setListenStatus}
             />
           </div>
 
@@ -114,10 +141,8 @@ export default function AlbumDetail({
               Rating
             </h3>
             <RatingInput
-              value={album.metadata?.rating ?? null}
-              onChange={(rating) =>
-                onUpdateMetadata(album.id, { rating })
-              }
+              value={rating}
+              onChange={setRating}
             />
           </div>
 
@@ -128,11 +153,24 @@ export default function AlbumDetail({
             </h3>
             <TagManager
               allTags={allTags}
-              albumTags={albumTagIds}
+              albumTags={selectedTagIds}
               onToggle={handleTagToggle}
               onCreateTag={onCreateTag}
             />
           </div>
+
+          {/* Save button */}
+          <button
+            onClick={handleSave}
+            disabled={!hasChanges || saving}
+            className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+              hasChanges && !saving
+                ? "bg-green-500 hover:bg-green-400 text-black"
+                : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+            }`}
+          >
+            {saving ? "Saving..." : hasChanges ? "Save Changes" : "No Changes"}
+          </button>
 
           {/* Open in Spotify */}
           <a
