@@ -48,8 +48,22 @@ export async function GET(request: NextRequest) {
   try {
     const spotifyAlbums = await getAllSavedAlbums(session.accessToken);
 
-    if (spotifyAlbums.length > 0) {
-      const rows = spotifyAlbums.map((album) => ({
+    // Filter out albums the user has explicitly deleted from this app
+    const { data: deletedRows } = await supabase
+      .from("deleted_albums")
+      .select("spotify_id")
+      .eq("user_id", session.spotifyId);
+
+    const deletedIds = new Set(
+      (deletedRows || []).map((r: { spotify_id: string }) => r.spotify_id)
+    );
+
+    const filteredAlbums = spotifyAlbums.filter(
+      (album) => !deletedIds.has(album.id)
+    );
+
+    if (filteredAlbums.length > 0) {
+      const rows = filteredAlbums.map((album) => ({
         user_id: session.spotifyId,
         spotify_id: album.id,
         name: album.name,
@@ -85,7 +99,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(rowsToAlbums(allAlbums));
     }
 
-    return NextResponse.json(spotifyAlbums);
+    return NextResponse.json(filteredAlbums);
   } catch (error) {
     console.error("Error fetching albums:", error);
 
@@ -114,7 +128,7 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);
 
-  if (!session?.accessToken || !session?.spotifyId) {
+  if (!session?.spotifyId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -164,27 +178,17 @@ export async function DELETE(request: NextRequest) {
     errors.push("Failed to delete album from database");
   }
 
-  // 4. Unsave from Spotify library
-  try {
-    const spotifyRes = await fetch(
-      `https://api.spotify.com/v1/me/albums?ids=${album_id}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-          "Content-Type": "application/json",
-        },
-      }
+  // 4. Track as deleted so sync doesn't re-add it
+  const { error: deletedError } = await supabase
+    .from("deleted_albums")
+    .upsert(
+      { user_id: session.spotifyId, spotify_id: album_id },
+      { onConflict: "user_id,spotify_id" }
     );
 
-    if (!spotifyRes.ok) {
-      const errorText = await spotifyRes.text();
-      console.error("Spotify unsave error:", spotifyRes.status, errorText);
-      errors.push("Failed to unsave from Spotify");
-    }
-  } catch (error) {
-    console.error("Spotify unsave error:", error);
-    errors.push("Failed to reach Spotify");
+  if (deletedError) {
+    console.error("Error tracking deleted album:", deletedError);
+    errors.push("Failed to track deletion");
   }
 
   if (errors.length > 0) {

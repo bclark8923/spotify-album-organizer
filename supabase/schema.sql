@@ -47,6 +47,17 @@ CREATE TABLE IF NOT EXISTS album_metadata (
   UNIQUE(user_id, album_id)
 );
 
+-- Deleted albums: tracks albums the user removed from this app so sync doesn't re-add them
+CREATE TABLE IF NOT EXISTS deleted_albums (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  spotify_id TEXT NOT NULL,
+  deleted_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, spotify_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_deleted_albums_user ON deleted_albums(user_id);
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_tags_user ON tags(user_id);
 CREATE INDEX IF NOT EXISTS idx_album_tags_user_album ON album_tags(user_id, album_id);
