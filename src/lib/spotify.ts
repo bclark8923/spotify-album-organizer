@@ -39,7 +39,11 @@ export async function getAllSavedAlbums(accessToken: string): Promise<SpotifyAlb
 
   while (true) {
     const data = await getSavedAlbums(accessToken, limit, offset);
-    albums.push(...data.items.map((item) => item.album));
+    albums.push(
+      ...data.items
+        .filter((item) => item && item.album)
+        .map((item) => item.album)
+    );
 
     if (!data.next) break;
     offset += limit;

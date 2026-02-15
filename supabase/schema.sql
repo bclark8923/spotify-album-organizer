@@ -1,3 +1,21 @@
+-- Saved albums: synced from Spotify, stores album data per user
+CREATE TABLE IF NOT EXISTS saved_albums (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  spotify_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  artists JSONB NOT NULL DEFAULT '[]',
+  images JSONB NOT NULL DEFAULT '[]',
+  release_date TEXT,
+  total_tracks INTEGER,
+  uri TEXT,
+  external_url TEXT,
+  synced_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, spotify_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_saved_albums_user ON saved_albums(user_id);
+
 -- Tags table: stores user-defined tags
 CREATE TABLE IF NOT EXISTS tags (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
