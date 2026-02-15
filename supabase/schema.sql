@@ -59,6 +59,21 @@ CREATE TABLE IF NOT EXISTS deleted_albums (
 
 CREATE INDEX IF NOT EXISTS idx_deleted_albums_user ON deleted_albums(user_id);
 
+-- Schema migrations tracking
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  name TEXT PRIMARY KEY,
+  applied_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Function to execute SQL from the migration runner (service role only)
+CREATE OR REPLACE FUNCTION exec_sql(query TEXT) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+BEGIN
+  EXECUTE query;
+END;
+$$;
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_tags_user ON tags(user_id);
 CREATE INDEX IF NOT EXISTS idx_album_tags_user_album ON album_tags(user_id, album_id);
