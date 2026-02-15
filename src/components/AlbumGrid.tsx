@@ -130,16 +130,23 @@ export default function AlbumGrid() {
     }
   }, [initialLoadDone, tags.length, session, seedTags]);
 
-  // Build enriched albums
+  // Build enriched albums (deduplicate by spotify id)
   const enrichedAlbums: AlbumWithMetadata[] = useMemo(() => {
-    return albums.map((album) => ({
-      ...album,
-      metadata: metadata.find((m) => m.album_id === album.id),
-      tags: albumTags
-        .filter((at) => at.album_id === album.id)
-        .map((at) => at.tags)
-        .filter(Boolean),
-    }));
+    const seen = new Set<string>();
+    return albums
+      .filter((album) => {
+        if (seen.has(album.id)) return false;
+        seen.add(album.id);
+        return true;
+      })
+      .map((album) => ({
+        ...album,
+        metadata: metadata.find((m) => m.album_id === album.id),
+        tags: albumTags
+          .filter((at) => at.album_id === album.id)
+          .map((at) => at.tags)
+          .filter(Boolean),
+      }));
   }, [albums, metadata, albumTags]);
 
   // Filter albums
