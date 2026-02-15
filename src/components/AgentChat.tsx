@@ -1,32 +1,50 @@
 "use client";
 
-import { useState, useRef, useEffect, ReactNode } from "react";
+import { useState, useRef, useEffect, ComponentPropsWithoutRef } from "react";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "agent";
   text: string;
 }
 
-function renderMessageText(text: string): ReactNode {
-  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g);
-  return parts.map((part, i) => {
-    const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (match) {
-      return (
-        <a
-          key={i}
-          href={match[2]}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-purple-400 underline hover:text-purple-300"
-        >
-          {match[1]}
-        </a>
-      );
-    }
-    return part;
-  });
-}
+const markdownComponents = {
+  a: (props: ComponentPropsWithoutRef<"a">) => (
+    <a
+      {...props}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-purple-400 underline hover:text-purple-300"
+    />
+  ),
+  h1: (props: ComponentPropsWithoutRef<"h1">) => (
+    <h1 {...props} className="text-base font-bold mb-1 mt-2" />
+  ),
+  h2: (props: ComponentPropsWithoutRef<"h2">) => (
+    <h2 {...props} className="text-sm font-bold mb-1 mt-2" />
+  ),
+  h3: (props: ComponentPropsWithoutRef<"h3">) => (
+    <h3 {...props} className="text-sm font-semibold mb-1 mt-1" />
+  ),
+  ul: (props: ComponentPropsWithoutRef<"ul">) => (
+    <ul {...props} className="list-disc pl-4 my-1 space-y-0.5" />
+  ),
+  ol: (props: ComponentPropsWithoutRef<"ol">) => (
+    <ol {...props} className="list-decimal pl-4 my-1 space-y-0.5" />
+  ),
+  li: (props: ComponentPropsWithoutRef<"li">) => (
+    <li {...props} className="leading-snug" />
+  ),
+  p: (props: ComponentPropsWithoutRef<"p">) => (
+    <p {...props} className="mb-1 last:mb-0" />
+  ),
+  strong: (props: ComponentPropsWithoutRef<"strong">) => (
+    <strong {...props} className="font-semibold text-white" />
+  ),
+  code: (props: ComponentPropsWithoutRef<"code">) => (
+    <code {...props} className="bg-zinc-700 px-1 py-0.5 rounded text-xs" />
+  ),
+};
 
 export default function AgentChat() {
   const [isOpen, setIsOpen] = useState(false);
@@ -123,13 +141,19 @@ export default function AgentChat() {
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[80%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
+              className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
                 msg.role === "user"
-                  ? "bg-purple-600 text-white"
+                  ? "bg-purple-600 text-white whitespace-pre-wrap"
                   : "bg-zinc-800 text-zinc-200"
               }`}
             >
-              {msg.role === "agent" ? renderMessageText(msg.text) : msg.text}
+              {msg.role === "agent" ? (
+                <ReactMarkdown components={markdownComponents}>
+                  {msg.text}
+                </ReactMarkdown>
+              ) : (
+                msg.text
+              )}
             </div>
           </div>
         ))}
