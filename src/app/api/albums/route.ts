@@ -41,6 +41,7 @@ function rowsToAlbums(rows: Record<string, unknown>[]): SpotifyAlbum[] {
     images: row.images as SpotifyAlbum["images"],
     release_date: (row.release_date as string) || "",
     total_tracks: (row.total_tracks as number) || 0,
+    duration_ms: (row.duration_ms as number) || 0,
     uri: (row.uri as string) || "",
     external_urls: { spotify: (row.external_url as string) || "" },
   }));
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest) {
         images: album.images,
         release_date: album.release_date,
         total_tracks: album.total_tracks,
+        duration_ms: album.duration_ms || 0,
         uri: album.uri,
         external_url: album.external_urls?.spotify || null,
         synced_at: new Date().toISOString(),

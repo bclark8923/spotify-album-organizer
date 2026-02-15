@@ -7,6 +7,13 @@ import TagManager from "./TagManager";
 import RatingInput from "./RatingInput";
 import ListenStatus from "./ListenStatus";
 
+function formatDuration(ms: number): string {
+  const totalMinutes = Math.floor(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
+}
+
 interface AlbumDetailProps {
   album: AlbumWithMetadata;
   allTags: Tag[];
@@ -116,7 +123,8 @@ export default function AlbumDetail({
               <h2 className="text-xl font-bold text-white leading-tight">{album.name}</h2>
               <p className="text-sm text-zinc-400 mt-1">{artists}</p>
               <p className="text-xs text-zinc-500 mt-1">
-                {album.release_date} &middot; {album.total_tracks} tracks
+                {album.release_date} &middot; {album.total_tracks} track{album.total_tracks !== 1 ? "s" : ""}
+                {album.duration_ms > 0 && ` · ${formatDuration(album.duration_ms)}`}
               </p>
 
               {/* Play button */}

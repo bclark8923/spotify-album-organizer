@@ -3,6 +3,13 @@
 import Image from "next/image";
 import { AlbumWithMetadata, Tag } from "@/types";
 
+function formatDuration(ms: number): string {
+  const totalMinutes = Math.floor(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
+}
+
 interface AlbumCardProps {
   album: AlbumWithMetadata;
   onClick: () => void;
@@ -53,6 +60,10 @@ export default function AlbumCard({ album, onClick, onPlay }: AlbumCardProps) {
       {/* Info */}
       <h3 className="text-sm font-semibold text-white truncate">{album.name}</h3>
       <p className="text-xs text-zinc-400 truncate mt-0.5">{artists}</p>
+      <p className="text-[10px] text-zinc-500 mt-0.5">
+        {album.total_tracks} track{album.total_tracks !== 1 ? "s" : ""}
+        {album.duration_ms > 0 && ` · ${formatDuration(album.duration_ms)}`}
+      </p>
 
       {/* Status row: listen status + rating */}
       <div className="flex items-center gap-1.5 mt-2">

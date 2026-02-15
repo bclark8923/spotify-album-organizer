@@ -5,6 +5,7 @@ export interface SpotifyAlbum {
   images: { url: string; height: number; width: number }[];
   release_date: string;
   total_tracks: number;
+  duration_ms: number;
   uri: string;
   external_urls: { spotify: string };
 }

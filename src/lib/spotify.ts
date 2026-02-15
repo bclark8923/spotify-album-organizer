@@ -42,7 +42,12 @@ export async function getAllSavedAlbums(accessToken: string): Promise<SpotifyAlb
     albums.push(
       ...data.items
         .filter((item) => item && item.album)
-        .map((item) => item.album)
+        .map((item) => {
+          const a = item.album;
+          const tracks = (a as unknown as { tracks?: { items?: { duration_ms?: number }[] } }).tracks;
+          const duration_ms = tracks?.items?.reduce((sum, t) => sum + (t.duration_ms || 0), 0) || 0;
+          return { ...a, duration_ms };
+        })
     );
 
     if (!data.next) break;

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS saved_albums (
   images JSONB NOT NULL DEFAULT '[]',
   release_date TEXT,
   total_tracks INTEGER,
+  duration_ms BIGINT DEFAULT 0,
   uri TEXT,
   external_url TEXT,
   synced_at TIMESTAMPTZ DEFAULT NOW(),
