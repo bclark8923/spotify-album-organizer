@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const requestBody = {
-      model: "gpt-4o",
+      model: "gpt-4.1",
       prompt: {
         id: PROMPT_ID,
         variables: {
