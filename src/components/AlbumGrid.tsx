@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { SpotifyAlbum, AlbumWithMetadata, Tag, AlbumMetadata } from "@/types";
 import AlbumCard from "./AlbumCard";
 import AlbumDetail from "./AlbumDetail";
@@ -20,21 +20,28 @@ export default function AlbumGrid() {
   const [metadata, setMetadata] = useState<AlbumMetadata[]>([]);
   const [albumTags, setAlbumTags] = useState<AlbumTagRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumWithMetadata | null>(null);
   const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
   const [listenStatusFilter, setListenStatusFilter] = useState<"all" | "to_listen" | "listened" | "unset">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "artist" | "date" | "rating">("name");
 
-  const fetchAlbums = useCallback(async () => {
+  const fetchAlbums = useCallback(async (isBackground = false) => {
+    if (!isBackground) setSyncing(true);
     try {
       const res = await fetch("/api/albums");
       if (res.ok) {
         const data = await res.json();
         setAlbums(data);
+        setLastSynced(new Date());
       }
     } catch (error) {
       console.error("Failed to fetch albums:", error);
+    } finally {
+      if (!isBackground) setSyncing(false);
     }
   }, []);
 
@@ -81,11 +88,24 @@ export default function AlbumGrid() {
 
     const loadData = async () => {
       setLoading(true);
+      setSyncing(true);
       await Promise.all([fetchAlbums(), fetchTags(), fetchMetadata()]);
+      setSyncing(false);
       setLoading(false);
     };
 
     loadData();
+
+    // Auto-sync albums every 5 minutes to pick up newly saved albums
+    syncIntervalRef.current = setInterval(() => {
+      fetchAlbums(true);
+    }, 5 * 60 * 1000);
+
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+      }
+    };
   }, [session, fetchAlbums, fetchTags, fetchMetadata]);
 
   // Seed default tags on first load if none exist
@@ -239,7 +259,7 @@ export default function AlbumGrid() {
       <div className="flex items-center justify-center h-96">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-zinc-400">Loading your albums...</p>
+          <p className="text-sm text-zinc-400">Syncing albums from Spotify...</p>
         </div>
       </div>
     );
@@ -265,12 +285,40 @@ export default function AlbumGrid() {
 
       {/* Sort + count bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-zinc-800">
-        <p className="text-sm text-zinc-400">
-          {filteredAlbums.length} album{filteredAlbums.length !== 1 ? "s" : ""}
-          {filteredAlbums.length !== enrichedAlbums.length && (
-            <span className="text-zinc-600"> of {enrichedAlbums.length}</span>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-zinc-400">
+            {filteredAlbums.length} album{filteredAlbums.length !== 1 ? "s" : ""}
+            {filteredAlbums.length !== enrichedAlbums.length && (
+              <span className="text-zinc-600"> of {enrichedAlbums.length}</span>
+            )}
+          </p>
+          <button
+            onClick={() => fetchAlbums()}
+            disabled={syncing}
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Sync albums from Spotify"
+          >
+            <svg
+              className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            {syncing ? "Syncing..." : "Sync"}
+          </button>
+          {lastSynced && !syncing && (
+            <span className="text-xs text-zinc-600">
+              Last synced {lastSynced.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
           )}
-        </p>
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-zinc-500">Sort:</span>
           {(
