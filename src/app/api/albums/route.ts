@@ -45,13 +45,27 @@ export async function GET() {
         }
       }
 
-      // Remove albums from Supabase that are no longer saved on Spotify
-      const spotifyIds = spotifyAlbums.map((a) => a.id);
-      await supabase
-        .from("saved_albums")
-        .delete()
-        .eq("user_id", session.spotifyId)
-        .not("spotify_id", "in", `(${spotifyIds.join(",")})`);
+    }
+
+    // Return all albums from Supabase (includes both current Spotify saves and previously saved albums)
+    const { data: allAlbums } = await supabase
+      .from("saved_albums")
+      .select("*")
+      .eq("user_id", session.spotifyId)
+      .order("name");
+
+    if (allAlbums && allAlbums.length > 0) {
+      const albums: SpotifyAlbum[] = allAlbums.map((row) => ({
+        id: row.spotify_id,
+        name: row.name,
+        artists: row.artists,
+        images: row.images,
+        release_date: row.release_date || "",
+        total_tracks: row.total_tracks || 0,
+        uri: row.uri || "",
+        external_urls: { spotify: row.external_url || "" },
+      }));
+      return NextResponse.json(albums);
     }
 
     return NextResponse.json(spotifyAlbums);
