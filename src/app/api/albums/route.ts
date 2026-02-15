@@ -110,3 +110,89 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.accessToken || !session?.spotifyId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { album_id } = body;
+
+  if (!album_id) {
+    return NextResponse.json({ error: "album_id required" }, { status: 400 });
+  }
+
+  const supabase = getSupabase();
+  const errors: string[] = [];
+
+  // 1. Delete album_tags for this album
+  const { error: tagsError } = await supabase
+    .from("album_tags")
+    .delete()
+    .eq("user_id", session.spotifyId)
+    .eq("album_id", album_id);
+
+  if (tagsError) {
+    console.error("Error deleting album tags:", tagsError);
+    errors.push("Failed to delete tags");
+  }
+
+  // 2. Delete album_metadata for this album
+  const { error: metaError } = await supabase
+    .from("album_metadata")
+    .delete()
+    .eq("user_id", session.spotifyId)
+    .eq("album_id", album_id);
+
+  if (metaError) {
+    console.error("Error deleting album metadata:", metaError);
+    errors.push("Failed to delete metadata");
+  }
+
+  // 3. Delete from saved_albums
+  const { error: albumError } = await supabase
+    .from("saved_albums")
+    .delete()
+    .eq("user_id", session.spotifyId)
+    .eq("spotify_id", album_id);
+
+  if (albumError) {
+    console.error("Error deleting saved album:", albumError);
+    errors.push("Failed to delete album from database");
+  }
+
+  // 4. Unsave from Spotify library
+  try {
+    const spotifyRes = await fetch(
+      `https://api.spotify.com/v1/me/albums?ids=${album_id}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!spotifyRes.ok) {
+      const errorText = await spotifyRes.text();
+      console.error("Spotify unsave error:", spotifyRes.status, errorText);
+      errors.push("Failed to unsave from Spotify");
+    }
+  } catch (error) {
+    console.error("Spotify unsave error:", error);
+    errors.push("Failed to reach Spotify");
+  }
+
+  if (errors.length > 0) {
+    return NextResponse.json(
+      { error: errors.join("; "), partial: true },
+      { status: 207 }
+    );
+  }
+
+  return NextResponse.json({ success: true });
+}

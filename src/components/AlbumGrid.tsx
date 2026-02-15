@@ -233,6 +233,34 @@ export default function AlbumGrid() {
     }
   };
 
+  const handleDeleteAlbum = async (
+    albumId: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch("/api/albums", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ album_id: albumId }),
+      });
+
+      if (!res.ok && res.status !== 207) {
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, error: errorData.error || "Failed to delete album" };
+      }
+
+      // Remove album from local state
+      setAlbums((prev) => prev.filter((a) => a.id !== albumId));
+      setMetadata((prev) => prev.filter((m) => m.album_id !== albumId));
+      setAlbumTags((prev) => prev.filter((at) => at.album_id !== albumId));
+      setSelectedAlbum(null);
+
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to delete album:", error);
+      return { success: false, error: "Network error" };
+    }
+  };
+
   const handlePlayAlbum = async (album: SpotifyAlbum) => {
     if (!session?.accessToken) return;
     try {
@@ -358,6 +386,7 @@ export default function AlbumGrid() {
           onPlay={() => handlePlayAlbum(selectedAlbum)}
           onUpdateMetadata={handleUpdateMetadata}
           onCreateTag={handleCreateTag}
+          onDeleteAlbum={handleDeleteAlbum}
         />
       )}
     </div>
