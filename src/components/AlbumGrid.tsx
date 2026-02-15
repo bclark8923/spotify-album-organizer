@@ -27,7 +27,7 @@ export default function AlbumGrid() {
   const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
   const [listenStatusFilter, setListenStatusFilter] = useState<"all" | "to_listen" | "listened" | "unset">("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "artist" | "date" | "rating">("name");
+  const [sortBy, setSortBy] = useState<"name" | "artist" | "date" | "rating">("rating");
 
   const loadCachedAlbums = useCallback(async () => {
     try {
