@@ -19,8 +19,8 @@ export default function AlbumGrid() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [metadata, setMetadata] = useState<AlbumMetadata[]>([]);
   const [albumTags, setAlbumTags] = useState<AlbumTagRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumWithMetadata | null>(null);
@@ -87,11 +87,10 @@ export default function AlbumGrid() {
     if (!session) return;
 
     const loadData = async () => {
-      setLoading(true);
       setSyncing(true);
       await Promise.all([fetchAlbums(), fetchTags(), fetchMetadata()]);
       setSyncing(false);
-      setLoading(false);
+      setInitialLoadDone(true);
     };
 
     loadData();
@@ -110,10 +109,10 @@ export default function AlbumGrid() {
 
   // Seed default tags on first load if none exist
   useEffect(() => {
-    if (!loading && tags.length === 0 && session) {
+    if (initialLoadDone && tags.length === 0 && session) {
       seedTags();
     }
-  }, [loading, tags.length, session, seedTags]);
+  }, [initialLoadDone, tags.length, session, seedTags]);
 
   // Build enriched albums
   const enrichedAlbums: AlbumWithMetadata[] = useMemo(() => {
@@ -253,17 +252,6 @@ export default function AlbumGrid() {
       window.open(album.external_urls.spotify, "_blank");
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-zinc-400">Syncing albums from Spotify...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-full">
