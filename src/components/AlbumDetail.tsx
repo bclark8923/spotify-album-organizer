@@ -1,0 +1,153 @@
+"use client";
+
+import Image from "next/image";
+import { AlbumWithMetadata, Tag } from "@/types";
+import TagManager from "./TagManager";
+import RatingInput from "./RatingInput";
+import ListenStatus from "./ListenStatus";
+
+interface AlbumDetailProps {
+  album: AlbumWithMetadata;
+  allTags: Tag[];
+  onClose: () => void;
+  onPlay: () => void;
+  onUpdateMetadata: (albumId: string, data: {
+    listen_status?: "to_listen" | "listened" | null;
+    rating?: number | null;
+    tags?: string[];
+  }) => void;
+  onCreateTag: (name: string) => void;
+}
+
+export default function AlbumDetail({
+  album,
+  allTags,
+  onClose,
+  onPlay,
+  onUpdateMetadata,
+  onCreateTag,
+}: AlbumDetailProps) {
+  const imageUrl = album.images[0]?.url;
+  const artists = album.artists.map((a) => a.name).join(", ");
+  const albumTagIds = album.tags?.map((t) => t.id) || [];
+
+  const handleTagToggle = (tagId: string, assigned: boolean) => {
+    const newTags = assigned
+      ? [...albumTagIds, tagId]
+      : albumTagIds.filter((id) => id !== tagId);
+    onUpdateMetadata(album.id, { tags: newTags });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-zinc-900 rounded-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto border border-zinc-800"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header with album art */}
+        <div className="relative">
+          <div className="flex gap-4 p-6">
+            {imageUrl && (
+              <div className="relative w-40 h-40 rounded-lg overflow-hidden shrink-0 shadow-2xl">
+                <Image
+                  src={imageUrl}
+                  alt={album.name}
+                  fill
+                  sizes="160px"
+                  className="object-cover"
+                />
+              </div>
+            )}
+            <div className="flex flex-col justify-end min-w-0">
+              <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Album</p>
+              <h2 className="text-xl font-bold text-white leading-tight">{album.name}</h2>
+              <p className="text-sm text-zinc-400 mt-1">{artists}</p>
+              <p className="text-xs text-zinc-500 mt-1">
+                {album.release_date} &middot; {album.total_tracks} tracks
+              </p>
+
+              {/* Play button */}
+              <button
+                onClick={onPlay}
+                className="mt-3 inline-flex items-center gap-2 px-5 py-2 bg-green-500 hover:bg-green-400 rounded-full text-sm font-semibold text-black transition-colors w-fit cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                Play
+              </button>
+            </div>
+          </div>
+
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Metadata section */}
+        <div className="px-6 pb-6 space-y-5">
+          {/* Listen Status */}
+          <div>
+            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+              Listen Status
+            </h3>
+            <ListenStatus
+              status={album.metadata?.listen_status || null}
+              onChange={(status) =>
+                onUpdateMetadata(album.id, { listen_status: status })
+              }
+            />
+          </div>
+
+          {/* Rating */}
+          <div>
+            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+              Rating
+            </h3>
+            <RatingInput
+              value={album.metadata?.rating ?? null}
+              onChange={(rating) =>
+                onUpdateMetadata(album.id, { rating })
+              }
+            />
+          </div>
+
+          {/* Tags */}
+          <div>
+            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+              Tags
+            </h3>
+            <TagManager
+              allTags={allTags}
+              albumTags={albumTagIds}
+              onToggle={handleTagToggle}
+              onCreateTag={onCreateTag}
+            />
+          </div>
+
+          {/* Open in Spotify */}
+          <a
+            href={album.external_urls.spotify}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-xs text-zinc-500 hover:text-green-400 transition-colors"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+            </svg>
+            Open in Spotify
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
