@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { message } = body;
+  const { message, previous_response_id } = body;
 
   if (!message?.trim()) {
     return NextResponse.json({ error: "Message required" }, { status: 400 });
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const requestBody = {
+    const requestBody: Record<string, unknown> = {
       model: "gpt-4.1",
       prompt: {
         id: PROMPT_ID,
@@ -81,6 +81,10 @@ export async function POST(request: NextRequest) {
       },
       input: message,
     };
+
+    if (previous_response_id) {
+      requestBody.previous_response_id = previous_response_id;
+    }
 
     console.log("[OpenAI] Request body:", JSON.stringify(requestBody));
 
@@ -123,7 +127,7 @@ export async function POST(request: NextRequest) {
       output_preview: outputText.substring(0, 200),
     }));
 
-    return NextResponse.json({ response: outputText });
+    return NextResponse.json({ response: outputText, response_id: data.id });
   } catch (error) {
     console.error("Agent error:", error);
     return NextResponse.json(

@@ -12,6 +12,7 @@ export default function AgentChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [responseId, setResponseId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,12 +31,15 @@ export default function AgentChat() {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, previous_response_id: responseId }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
+        if (data.response_id) {
+          setResponseId(data.response_id);
+        }
         setMessages((prev) => [...prev, { role: "agent", text: data.response }]);
       } else {
         setMessages((prev) => [
