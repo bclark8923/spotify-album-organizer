@@ -30,6 +30,8 @@ export default function AlbumGrid() {
   const [sortBy, setSortBy] = useState<"name" | "artist" | "date" | "rating">("rating");
   const [maxTracksFilter, setMaxTracksFilter] = useState<number | null>(null);
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
+  const [syncWarningVisible, setSyncWarningVisible] = useState(false);
+  const syncWarningTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadCachedAlbums = useCallback(async () => {
     try {
@@ -133,6 +135,21 @@ export default function AlbumGrid() {
       }
     };
   }, [session, loadCachedAlbums, syncAlbums, fetchTags, fetchMetadata]);
+
+  // Auto-dismiss sync warning after 5 seconds
+  useEffect(() => {
+    if (syncWarning) {
+      setSyncWarningVisible(true);
+      if (syncWarningTimerRef.current) clearTimeout(syncWarningTimerRef.current);
+      syncWarningTimerRef.current = setTimeout(() => {
+        setSyncWarningVisible(false);
+        syncWarningTimerRef.current = setTimeout(() => setSyncWarning(null), 500);
+      }, 5000);
+    }
+    return () => {
+      if (syncWarningTimerRef.current) clearTimeout(syncWarningTimerRef.current);
+    };
+  }, [syncWarning]);
 
   // Seed default tags on first load if none exist
   useEffect(() => {
@@ -357,7 +374,9 @@ export default function AlbumGrid() {
             </span>
           )}
           {syncWarning && (
-            <span className="text-xs text-amber-400">{syncWarning}</span>
+            <span className={`text-xs text-amber-400 transition-opacity duration-500 ${syncWarningVisible ? "opacity-100" : "opacity-0"}`}>
+              {syncWarning}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-2">
