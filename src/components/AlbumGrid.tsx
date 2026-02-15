@@ -28,6 +28,7 @@ export default function AlbumGrid() {
   const [listenStatusFilter, setListenStatusFilter] = useState<"all" | "to_listen" | "listened" | "unset">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "artist" | "date" | "rating">("rating");
+  const [maxTracksFilter, setMaxTracksFilter] = useState<number | null>(null);
 
   const loadCachedAlbums = useCallback(async () => {
     try {
@@ -170,6 +171,11 @@ export default function AlbumGrid() {
       );
     }
 
+    // Track count filter
+    if (maxTracksFilter !== null) {
+      result = result.filter((a) => a.total_tracks < maxTracksFilter);
+    }
+
     // Listen status filter
     if (listenStatusFilter !== "all") {
       result = result.filter((a) => {
@@ -195,7 +201,7 @@ export default function AlbumGrid() {
     });
 
     return result;
-  }, [enrichedAlbums, searchQuery, selectedTagFilters, listenStatusFilter, sortBy]);
+  }, [enrichedAlbums, searchQuery, selectedTagFilters, listenStatusFilter, maxTracksFilter, sortBy]);
 
   const handleUpdateMetadata = async (
     albumId: string,
@@ -301,6 +307,8 @@ export default function AlbumGrid() {
         onListenStatusFilterChange={setListenStatusFilter}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        maxTracksFilter={maxTracksFilter}
+        onMaxTracksFilterChange={setMaxTracksFilter}
       />
 
       {/* Sort + count bar */}
