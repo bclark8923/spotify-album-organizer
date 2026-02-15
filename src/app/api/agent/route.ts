@@ -71,27 +71,36 @@ export async function POST(request: NextRequest) {
   });
 
   try {
+    const requestBody = {
+      model: "gpt-4o-mini",
+      prompt: {
+        id: PROMPT_ID,
+        variables: {
+          album_metadata: JSON.stringify(albumMetadata),
+        },
+      },
+      input: message,
+    };
+
+    console.log("[OpenAI] Request:", JSON.stringify({
+      model: requestBody.model,
+      prompt_id: PROMPT_ID,
+      input: message,
+      album_count: albumMetadata.length,
+    }));
+
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        prompt: {
-          id: PROMPT_ID,
-          variables: {
-            album_metadata: JSON.stringify(albumMetadata),
-          },
-        },
-        input: message,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
+      console.error("[OpenAI] Error:", response.status, errorText);
       return NextResponse.json(
         { error: "Failed to get response from agent" },
         { status: 500 }
@@ -112,6 +121,12 @@ export async function POST(request: NextRequest) {
         )
         .join("") ||
       "";
+
+    console.log("[OpenAI] Response:", JSON.stringify({
+      status: response.status,
+      output_length: outputText.length,
+      output_preview: outputText.substring(0, 200),
+    }));
 
     return NextResponse.json({ response: outputText });
   } catch (error) {
