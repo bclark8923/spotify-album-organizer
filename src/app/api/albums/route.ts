@@ -110,6 +110,9 @@ export async function GET(request: NextRequest) {
       (album) => !deletedIds.has(album.id)
     );
 
+    const withDuration = filteredAlbums.filter((a) => a.duration_ms > 0).length;
+    console.log(`[Albums] Sync: ${filteredAlbums.length} albums, ${withDuration} with duration_ms`);
+
     if (filteredAlbums.length > 0) {
       const rows = filteredAlbums.map((album) => ({
         user_id: session.spotifyId,

@@ -39,16 +39,28 @@ export async function getAllSavedAlbums(accessToken: string): Promise<SpotifyAlb
 
   while (true) {
     const data = await getSavedAlbums(accessToken, limit, offset);
-    albums.push(
-      ...data.items
-        .filter((item) => item && item.album)
-        .map((item) => {
-          const a = item.album;
-          const tracks = (a as unknown as { tracks?: { items?: { duration_ms?: number }[] } }).tracks;
-          const duration_ms = tracks?.items?.reduce((sum, t) => sum + (t.duration_ms || 0), 0) || 0;
-          return { ...a, duration_ms };
-        })
-    );
+    const batch = data.items
+      .filter((item) => item && item.album)
+      .map((item) => {
+        const a = item.album;
+        const raw = a as unknown as Record<string, unknown>;
+        const tracks = raw.tracks as { items?: { duration_ms?: number }[] } | undefined;
+        const duration_ms = tracks?.items?.reduce((sum, t) => sum + (t.duration_ms || 0), 0) || 0;
+        return { ...a, duration_ms };
+      });
+
+    if (offset === 0 && batch.length > 0) {
+      const sample = batch[0];
+      const rawSample = data.items[0]?.album as unknown as Record<string, unknown>;
+      console.log("[Spotify] Sample album duration:", {
+        name: sample.name,
+        duration_ms: sample.duration_ms,
+        has_tracks: !!rawSample?.tracks,
+        track_count: (rawSample?.tracks as { items?: unknown[] })?.items?.length,
+      });
+    }
+
+    albums.push(...batch);
 
     if (!data.next) break;
     offset += limit;
