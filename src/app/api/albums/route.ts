@@ -178,9 +178,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  // Use getToken instead of getServerSession to avoid triggering a Spotify
+  // token refresh — the DELETE handler only needs the user's spotifyId.
+  const jwt = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const spotifyId = jwt?.spotifyId as string | undefined;
 
-  if (!session?.spotifyId) {
+  if (!spotifyId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -192,56 +195,23 @@ export async function DELETE(request: NextRequest) {
   }
 
   const supabase = getSupabase();
-  const errors: string[] = [];
 
-  // 1. Delete album_tags for this album
-  const { error: tagsError } = await supabase
-    .from("album_tags")
-    .delete()
-    .eq("user_id", session.spotifyId)
-    .eq("album_id", album_id);
-
-  if (tagsError) {
-    console.error("Error deleting album tags:", tagsError);
-    errors.push("Failed to delete tags");
-  }
-
-  // 2. Delete album_metadata for this album
-  const { error: metaError } = await supabase
-    .from("album_metadata")
-    .delete()
-    .eq("user_id", session.spotifyId)
-    .eq("album_id", album_id);
-
-  if (metaError) {
-    console.error("Error deleting album metadata:", metaError);
-    errors.push("Failed to delete metadata");
-  }
-
-  // 3. Delete from saved_albums
-  const { error: albumError } = await supabase
-    .from("saved_albums")
-    .delete()
-    .eq("user_id", session.spotifyId)
-    .eq("spotify_id", album_id);
-
-  if (albumError) {
-    console.error("Error deleting saved album:", albumError);
-    errors.push("Failed to delete album from database");
-  }
-
-  // 4. Track as deleted so sync doesn't re-add it
-  const { error: deletedError } = await supabase
-    .from("deleted_albums")
-    .upsert(
-      { user_id: session.spotifyId, spotify_id: album_id },
+  // Run all DB operations in parallel — they're independent
+  const [tagsResult, metaResult, albumResult, deletedResult] = await Promise.all([
+    supabase.from("album_tags").delete().eq("user_id", spotifyId).eq("album_id", album_id),
+    supabase.from("album_metadata").delete().eq("user_id", spotifyId).eq("album_id", album_id),
+    supabase.from("saved_albums").delete().eq("user_id", spotifyId).eq("spotify_id", album_id),
+    supabase.from("deleted_albums").upsert(
+      { user_id: spotifyId, spotify_id: album_id },
       { onConflict: "user_id,spotify_id" }
-    );
+    ),
+  ]);
 
-  if (deletedError) {
-    console.error("Error tracking deleted album:", deletedError);
-    errors.push("Failed to track deletion");
-  }
+  const errors: string[] = [];
+  if (tagsResult.error) errors.push("Failed to delete tags");
+  if (metaResult.error) errors.push("Failed to delete metadata");
+  if (albumResult.error) errors.push("Failed to delete album from database");
+  if (deletedResult.error) errors.push("Failed to track deletion");
 
   if (errors.length > 0) {
     return NextResponse.json(
