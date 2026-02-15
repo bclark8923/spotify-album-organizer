@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        instructions: {
+        prompt: {
           id: PROMPT_ID,
           variables: {
             album_metadata: JSON.stringify(albumMetadata),
