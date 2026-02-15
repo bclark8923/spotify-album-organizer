@@ -155,6 +155,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching albums:", error);
 
+    const isRateLimit = error instanceof Error && error.message.includes("rate limit");
+
     // Fallback: return albums from Supabase if Spotify API fails
     try {
       const { data: savedAlbums } = await supabase
@@ -164,7 +166,12 @@ export async function GET(request: NextRequest) {
         .order("name");
 
       if (savedAlbums && savedAlbums.length > 0) {
-        return NextResponse.json(rowsToAlbums(savedAlbums));
+        return NextResponse.json({
+          albums: rowsToAlbums(savedAlbums),
+          warning: isRateLimit
+            ? "Spotify is rate limiting requests. Showing cached albums."
+            : undefined,
+        });
       }
     } catch (dbError) {
       console.error("Error loading albums from Supabase:", dbError);

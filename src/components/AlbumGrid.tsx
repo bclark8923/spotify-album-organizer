@@ -29,6 +29,7 @@ export default function AlbumGrid() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "artist" | "date" | "rating">("rating");
   const [maxTracksFilter, setMaxTracksFilter] = useState<number | null>(null);
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
 
   const loadCachedAlbums = useCallback(async () => {
     try {
@@ -46,11 +47,20 @@ export default function AlbumGrid() {
 
   const syncAlbums = useCallback(async () => {
     setSyncing(true);
+    setSyncWarning(null);
     try {
       const res = await fetch("/api/albums");
       if (res.ok) {
         const data = await res.json();
-        setAlbums(data);
+        // Handle both array response (normal) and { albums, warning } (fallback)
+        if (Array.isArray(data)) {
+          setAlbums(data);
+        } else if (data.albums) {
+          setAlbums(data.albums);
+          if (data.warning) {
+            setSyncWarning(data.warning);
+          }
+        }
         setLastSynced(new Date());
       }
     } catch (error) {
@@ -345,6 +355,9 @@ export default function AlbumGrid() {
             <span className="text-xs text-zinc-600">
               Last synced {lastSynced.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
+          )}
+          {syncWarning && (
+            <span className="text-xs text-amber-400">{syncWarning}</span>
           )}
         </div>
         <div className="flex items-center gap-2">

@@ -17,6 +17,9 @@ async function fetchWithToken(url: string, accessToken: string, options?: Reques
 
     if (res.status === 429 && attempt < maxRetries) {
       const retryAfter = parseInt(res.headers.get("Retry-After") || "1", 10);
+      if (retryAfter > 60) {
+        throw new Error("Spotify rate limit too long, please try again later");
+      }
       const waitMs = retryAfter * 1000;
       console.log(`[Spotify] Rate limited, retrying in ${retryAfter}s...`);
       await new Promise((resolve) => setTimeout(resolve, waitMs));
