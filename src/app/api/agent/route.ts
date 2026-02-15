@@ -82,12 +82,7 @@ export async function POST(request: NextRequest) {
       input: message,
     };
 
-    console.log("[OpenAI] Request:", JSON.stringify({
-      model: requestBody.model,
-      prompt_id: PROMPT_ID,
-      input: message,
-      album_count: albumMetadata.length,
-    }));
+    console.log("[OpenAI] Request body:", JSON.stringify(requestBody));
 
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
