@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
 import { getAllSavedAlbums } from "@/lib/spotify";
 import { getSupabase } from "@/lib/supabase";
 import { SpotifyAlbum } from "@/types";
+
+async function refreshSpotifyToken(refreshToken: string): Promise<string | null> {
+  try {
+    const params = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    });
+
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+        ).toString("base64")}`,
+      },
+      body: params.toString(),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    return data.access_token;
+  } catch {
+    return null;
+  }
+}
 
 function rowsToAlbums(rows: Record<string, unknown>[]): SpotifyAlbum[] {
   return rows.map((row) => ({
@@ -46,7 +74,26 @@ export async function GET(request: NextRequest) {
 
   // Full sync: fetch from Spotify, upsert to Supabase, return all
   try {
-    const spotifyAlbums = await getAllSavedAlbums(session.accessToken);
+    let accessToken = session.accessToken;
+    let spotifyAlbums: SpotifyAlbum[];
+
+    try {
+      spotifyAlbums = await getAllSavedAlbums(accessToken);
+    } catch (err: unknown) {
+      // If 401, try refreshing the token and retry once
+      const isExpired = err instanceof Error && err.message.includes("401");
+      if (!isExpired) throw err;
+
+      const jwt = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+      const refreshToken = jwt?.refreshToken as string | undefined;
+      if (!refreshToken) throw err;
+
+      const newToken = await refreshSpotifyToken(refreshToken);
+      if (!newToken) throw err;
+
+      accessToken = newToken;
+      spotifyAlbums = await getAllSavedAlbums(accessToken);
+    }
 
     // Filter out albums the user has explicitly deleted from this app
     const { data: deletedRows } = await supabase
