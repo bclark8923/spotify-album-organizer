@@ -16,7 +16,7 @@ interface AlbumDetailProps {
     listen_status?: "to_listen" | "listened" | null;
     rating?: number | null;
     tags?: string[];
-  }) => void;
+  }) => Promise<{ success: boolean; error?: string }>;
   onCreateTag: (name: string) => void;
 }
 
@@ -40,6 +40,7 @@ export default function AlbumDetail({
     album.tags?.map((t) => t.id) || []
   );
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Track if anything has changed
   const originalStatus = album.metadata?.listen_status || null;
@@ -58,13 +59,18 @@ export default function AlbumDetail({
 
   const handleSave = async () => {
     setSaving(true);
-    await onUpdateMetadata(album.id, {
+    setSaveError(null);
+    const result = await onUpdateMetadata(album.id, {
       listen_status: listenStatus,
       rating,
       tags: selectedTagIds,
     });
     setSaving(false);
-    onClose();
+    if (result.success) {
+      onClose();
+    } else {
+      setSaveError(result.error || "Failed to save changes");
+    }
   };
 
   return (
@@ -158,6 +164,13 @@ export default function AlbumDetail({
               onCreateTag={onCreateTag}
             />
           </div>
+
+          {/* Error message */}
+          {saveError && (
+            <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              {saveError}
+            </p>
+          )}
 
           {/* Save button */}
           <button

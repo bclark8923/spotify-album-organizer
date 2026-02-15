@@ -181,45 +181,26 @@ export default function AlbumGrid() {
       rating?: number | null;
       tags?: string[];
     }
-  ) => {
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
-      await fetch("/api/album-metadata", {
+      const res = await fetch("/api/album-metadata", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ album_id: albumId, ...data }),
       });
 
-      // Refetch metadata
-      await fetchMetadata();
-
-      // Update selected album if it's the one being edited
-      if (selectedAlbum?.id === albumId) {
-        const updated = enrichedAlbums.find((a) => a.id === albumId);
-        if (updated) {
-          // Re-enrich with latest metadata after fetchMetadata completes
-          setSelectedAlbum((prev) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              metadata: data.listen_status !== undefined || data.rating !== undefined
-                ? {
-                    ...prev.metadata,
-                    id: prev.metadata?.id || "",
-                    user_id: prev.metadata?.user_id || "",
-                    album_id: albumId,
-                    listen_status: data.listen_status !== undefined ? data.listen_status : (prev.metadata?.listen_status || null),
-                    rating: data.rating !== undefined ? data.rating : (prev.metadata?.rating ?? null),
-                  }
-                : prev.metadata,
-              tags: data.tags !== undefined
-                ? tags.filter((t) => data.tags!.includes(t.id))
-                : prev.tags,
-            };
-          });
-        }
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Failed to save metadata:", errorData);
+        return { success: false, error: errorData.error || "Failed to save" };
       }
+
+      // Refetch metadata to update the grid
+      await fetchMetadata();
+      return { success: true };
     } catch (error) {
       console.error("Failed to update metadata:", error);
+      return { success: false, error: "Network error" };
     }
   };
 

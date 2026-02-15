@@ -23,9 +23,11 @@ export async function GET() {
   ]);
 
   if (metadataResult.error) {
+    console.error("Error fetching album metadata:", metadataResult.error);
     return NextResponse.json({ error: metadataResult.error.message }, { status: 500 });
   }
   if (albumTagsResult.error) {
+    console.error("Error fetching album tags:", albumTagsResult.error);
     return NextResponse.json({ error: albumTagsResult.error.message }, { status: 500 });
   }
 
@@ -60,7 +62,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Update metadata (listen_status and rating)
+  const errors: string[] = [];
+
+  // Update metadata (listen_status and rating) - saved independently
   if (listen_status !== undefined || rating !== undefined) {
     const updateData: Record<string, unknown> = {
       user_id: session.spotifyId,
@@ -76,33 +80,45 @@ export async function POST(request: NextRequest) {
       .upsert(updateData, { onConflict: "user_id,album_id" });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Error saving album metadata:", error);
+      errors.push(`metadata: ${error.message}`);
     }
   }
 
-  // Update tags
+  // Update tags - saved independently from metadata
   if (tags !== undefined) {
     // Remove existing tags for this album
-    await supabase
+    const { error: deleteError } = await supabase
       .from("album_tags")
       .delete()
       .eq("user_id", session.spotifyId)
       .eq("album_id", album_id);
 
-    // Insert new tags
-    if (tags.length > 0) {
+    if (deleteError) {
+      console.error("Error deleting album tags:", deleteError);
+      errors.push(`tags delete: ${deleteError.message}`);
+    } else if (tags.length > 0) {
+      // Insert new tags
       const tagRows = tags.map((tagId: string) => ({
         user_id: session.spotifyId,
         album_id,
         tag_id: tagId,
       }));
 
-      const { error } = await supabase.from("album_tags").insert(tagRows);
+      const { error: insertError } = await supabase.from("album_tags").insert(tagRows);
 
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      if (insertError) {
+        console.error("Error inserting album tags:", insertError);
+        errors.push(`tags insert: ${insertError.message}`);
       }
     }
+  }
+
+  if (errors.length > 0) {
+    return NextResponse.json(
+      { error: errors.join("; "), partial: true },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ success: true });

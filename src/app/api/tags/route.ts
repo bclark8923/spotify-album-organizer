@@ -19,6 +19,7 @@ export async function GET() {
     .order("name");
 
   if (error) {
+    console.error("Error fetching tags:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (error) {
+      console.error("Error seeding tags:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     return NextResponse.json(data);
@@ -68,6 +70,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
+    console.error("Error creating tag:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
