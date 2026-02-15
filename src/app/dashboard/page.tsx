@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import AlbumGrid from "@/components/AlbumGrid";
 import SpotifyPlayer from "@/components/SpotifyPlayer";
+import AgentChat from "@/components/AgentChat";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -49,6 +50,7 @@ export default function Dashboard() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <AlbumGrid />
       </main>
+      <AgentChat />
       <SpotifyPlayer />
     </div>
   );
