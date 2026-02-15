@@ -13,6 +13,23 @@ interface AlbumTagRow {
   tags: Tag;
 }
 
+function formatSyncWarning(warning: string): string {
+  const match = warning.match(/Available again at (.+?)\./);
+  if (!match) return warning;
+  const availableAt = new Date(match[1]);
+  const diffMs = availableAt.getTime() - Date.now();
+  if (diffMs <= 0) return "Spotify rate limit expired. Showing cached albums.";
+  const totalMin = Math.ceil(diffMs / 60000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const minutes = totalMin % 60;
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  return `Spotify rate limited. Try again in ${parts.join(" ")}. Showing cached albums.`;
+}
+
 export default function AlbumGrid() {
   const { data: session } = useSession();
   const [albums, setAlbums] = useState<SpotifyAlbum[]>([]);
@@ -60,7 +77,7 @@ export default function AlbumGrid() {
         } else if (data.albums) {
           setAlbums(data.albums);
           if (data.warning) {
-            setSyncWarning(data.warning);
+            setSyncWarning(formatSyncWarning(data.warning));
           }
         }
         setLastSynced(new Date());
