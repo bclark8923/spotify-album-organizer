@@ -54,9 +54,8 @@ export default function AlbumCard({ album, onClick, onPlay }: AlbumCardProps) {
       <h3 className="text-sm font-semibold text-white truncate">{album.name}</h3>
       <p className="text-xs text-zinc-400 truncate mt-0.5">{artists}</p>
 
-      {/* Badges row */}
-      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-        {/* Listen status badge */}
+      {/* Status row: listen status + rating */}
+      <div className="flex items-center gap-1.5 mt-2">
         {album.metadata?.listen_status === "listened" && (
           <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-500/20 text-green-400">
             Listened
@@ -67,21 +66,31 @@ export default function AlbumCard({ album, onClick, onPlay }: AlbumCardProps) {
             To Listen
           </span>
         )}
-
-        {/* Rating badge */}
         {album.metadata?.rating != null && (
           <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-500/15 text-yellow-400">
-            {album.metadata.rating.toFixed(album.metadata.rating % 1 === 0 ? 1 : 2)}
-          </span>
-        )}
-
-        {/* Tag count */}
-        {album.tags && album.tags.length > 0 && (
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/15 text-purple-400">
-            {album.tags.length} tag{album.tags.length !== 1 ? "s" : ""}
+            ★ {album.metadata.rating.toFixed(album.metadata.rating % 1 === 0 ? 1 : 2)}
           </span>
         )}
       </div>
+
+      {/* Tags */}
+      {album.tags && album.tags.length > 0 && (
+        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+          {album.tags.slice(0, 3).map((tag) => (
+            <span
+              key={tag.id}
+              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-700/80 text-zinc-300"
+            >
+              {tag.name}
+            </span>
+          ))}
+          {album.tags.length > 3 && (
+            <span className="text-[10px] text-zinc-500">
+              +{album.tags.length - 3}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
