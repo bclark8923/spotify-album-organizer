@@ -1,11 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getAllSavedAlbums } from "@/lib/spotify";
 import { getSupabase } from "@/lib/supabase";
 import { SpotifyAlbum } from "@/types";
 
-export async function GET() {
+function rowsToAlbums(rows: Record<string, unknown>[]): SpotifyAlbum[] {
+  return rows.map((row) => ({
+    id: row.spotify_id as string,
+    name: row.name as string,
+    artists: row.artists as SpotifyAlbum["artists"],
+    images: row.images as SpotifyAlbum["images"],
+    release_date: (row.release_date as string) || "",
+    total_tracks: (row.total_tracks as number) || 0,
+    uri: (row.uri as string) || "",
+    external_urls: { spotify: (row.external_url as string) || "" },
+  }));
+}
+
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
 
   if (!session?.accessToken || !session?.spotifyId) {
@@ -13,12 +26,28 @@ export async function GET() {
   }
 
   const supabase = getSupabase();
+  const source = request.nextUrl.searchParams.get("source");
 
+  // Fast path: return cached albums from Supabase only
+  if (source === "cache") {
+    const { data, error } = await supabase
+      .from("saved_albums")
+      .select("*")
+      .eq("user_id", session.spotifyId)
+      .order("name");
+
+    if (error) {
+      console.error("Error loading cached albums:", error);
+      return NextResponse.json([], { status: 200 });
+    }
+
+    return NextResponse.json(data ? rowsToAlbums(data) : []);
+  }
+
+  // Full sync: fetch from Spotify, upsert to Supabase, return all
   try {
-    // Fetch all saved albums from Spotify
     const spotifyAlbums = await getAllSavedAlbums(session.accessToken);
 
-    // Sync albums to Supabase
     if (spotifyAlbums.length > 0) {
       const rows = spotifyAlbums.map((album) => ({
         user_id: session.spotifyId,
@@ -33,7 +62,6 @@ export async function GET() {
         synced_at: new Date().toISOString(),
       }));
 
-      // Upsert in batches of 500 to avoid payload limits
       for (let i = 0; i < rows.length; i += 500) {
         const batch = rows.slice(i, i + 500);
         const { error } = await supabase
@@ -44,10 +72,9 @@ export async function GET() {
           console.error("Error syncing albums to Supabase:", error);
         }
       }
-
     }
 
-    // Return all albums from Supabase (includes both current Spotify saves and previously saved albums)
+    // Return all albums from Supabase (includes previously saved albums)
     const { data: allAlbums } = await supabase
       .from("saved_albums")
       .select("*")
@@ -55,17 +82,7 @@ export async function GET() {
       .order("name");
 
     if (allAlbums && allAlbums.length > 0) {
-      const albums: SpotifyAlbum[] = allAlbums.map((row) => ({
-        id: row.spotify_id,
-        name: row.name,
-        artists: row.artists,
-        images: row.images,
-        release_date: row.release_date || "",
-        total_tracks: row.total_tracks || 0,
-        uri: row.uri || "",
-        external_urls: { spotify: row.external_url || "" },
-      }));
-      return NextResponse.json(albums);
+      return NextResponse.json(rowsToAlbums(allAlbums));
     }
 
     return NextResponse.json(spotifyAlbums);
@@ -81,17 +98,7 @@ export async function GET() {
         .order("name");
 
       if (savedAlbums && savedAlbums.length > 0) {
-        const albums: SpotifyAlbum[] = savedAlbums.map((row) => ({
-          id: row.spotify_id,
-          name: row.name,
-          artists: row.artists,
-          images: row.images,
-          release_date: row.release_date || "",
-          total_tracks: row.total_tracks || 0,
-          uri: row.uri || "",
-          external_urls: { spotify: row.external_url || "" },
-        }));
-        return NextResponse.json(albums);
+        return NextResponse.json(rowsToAlbums(savedAlbums));
       }
     } catch (dbError) {
       console.error("Error loading albums from Supabase:", dbError);

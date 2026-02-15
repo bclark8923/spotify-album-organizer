@@ -29,8 +29,22 @@ export default function AlbumGrid() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "artist" | "date" | "rating">("name");
 
-  const fetchAlbums = useCallback(async (isBackground = false) => {
-    if (!isBackground) setSyncing(true);
+  const loadCachedAlbums = useCallback(async () => {
+    try {
+      const res = await fetch("/api/albums?source=cache");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length > 0) {
+          setAlbums(data);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load cached albums:", error);
+    }
+  }, []);
+
+  const syncAlbums = useCallback(async () => {
+    setSyncing(true);
     try {
       const res = await fetch("/api/albums");
       if (res.ok) {
@@ -39,9 +53,9 @@ export default function AlbumGrid() {
         setLastSynced(new Date());
       }
     } catch (error) {
-      console.error("Failed to fetch albums:", error);
+      console.error("Failed to sync albums:", error);
     } finally {
-      if (!isBackground) setSyncing(false);
+      setSyncing(false);
     }
   }, []);
 
@@ -87,17 +101,19 @@ export default function AlbumGrid() {
     if (!session) return;
 
     const loadData = async () => {
-      setSyncing(true);
-      await Promise.all([fetchAlbums(), fetchTags(), fetchMetadata()]);
-      setSyncing(false);
+      // Phase 1: load cached albums + tags + metadata from DB (fast)
+      await Promise.all([loadCachedAlbums(), fetchTags(), fetchMetadata()]);
       setInitialLoadDone(true);
+
+      // Phase 2: sync from Spotify in the background
+      syncAlbums();
     };
 
     loadData();
 
     // Auto-sync albums every 5 minutes to pick up newly saved albums
     syncIntervalRef.current = setInterval(() => {
-      fetchAlbums(true);
+      syncAlbums();
     }, 5 * 60 * 1000);
 
     return () => {
@@ -105,7 +121,7 @@ export default function AlbumGrid() {
         clearInterval(syncIntervalRef.current);
       }
     };
-  }, [session, fetchAlbums, fetchTags, fetchMetadata]);
+  }, [session, loadCachedAlbums, syncAlbums, fetchTags, fetchMetadata]);
 
   // Seed default tags on first load if none exist
   useEffect(() => {
@@ -262,7 +278,7 @@ export default function AlbumGrid() {
             )}
           </p>
           <button
-            onClick={() => fetchAlbums()}
+            onClick={() => syncAlbums()}
             disabled={syncing}
             className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             title="Sync albums from Spotify"
