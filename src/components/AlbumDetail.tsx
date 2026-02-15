@@ -163,7 +163,12 @@ export default function AlbumDetail({
             </h3>
             <RatingInput
               value={rating}
-              onChange={setRating}
+              onChange={(val) => {
+                setRating(val);
+                if (val !== null) {
+                  setListenStatus("listened");
+                }
+              }}
             />
           </div>
 
