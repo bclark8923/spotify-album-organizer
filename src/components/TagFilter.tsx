@@ -8,8 +8,6 @@ interface TagFilterProps {
   onToggleTag: (tagId: string) => void;
   listenStatusFilter: "all" | "to_listen" | "listened" | "unset";
   onListenStatusFilterChange: (filter: "all" | "to_listen" | "listened" | "unset") => void;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
   maxTracksFilter: number | null;
   onMaxTracksFilterChange: (value: number | null) => void;
 }
@@ -20,47 +18,11 @@ export default function TagFilter({
   onToggleTag,
   listenStatusFilter,
   onListenStatusFilterChange,
-  searchQuery,
-  onSearchChange,
   maxTracksFilter,
   onMaxTracksFilterChange,
 }: TagFilterProps) {
   return (
     <div className="flex flex-col gap-4 p-4 bg-zinc-900 border-b border-zinc-800">
-      {/* Search */}
-      <div className="relative">
-        <svg
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
-        <input
-          type="text"
-          placeholder="Search albums..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-10 pr-10 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => onSearchChange("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-      </div>
-
       {/* Listen status filter */}
       <div className="flex flex-wrap gap-2">
         <span className="text-xs text-zinc-500 self-center mr-1">Status:</span>

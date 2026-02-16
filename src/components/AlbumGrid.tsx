@@ -30,7 +30,11 @@ function formatSyncWarning(warning: string): string {
   return `Spotify rate limited. Try again in ${parts.join(" ")}. Showing cached albums.`;
 }
 
-export default function AlbumGrid() {
+interface AlbumGridProps {
+  searchQuery: string;
+}
+
+export default function AlbumGrid({ searchQuery }: AlbumGridProps) {
   const { data: session } = useSession();
   const [albums, setAlbums] = useState<SpotifyAlbum[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -42,7 +46,6 @@ export default function AlbumGrid() {
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumWithMetadata | null>(null);
   const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
   const [listenStatusFilter, setListenStatusFilter] = useState<"all" | "to_listen" | "listened" | "unset">("all");
-  const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "artist" | "date" | "rating">("rating");
   const [maxTracksFilter, setMaxTracksFilter] = useState<number | null>(null);
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
@@ -342,8 +345,6 @@ export default function AlbumGrid() {
         }
         listenStatusFilter={listenStatusFilter}
         onListenStatusFilterChange={setListenStatusFilter}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
         maxTracksFilter={maxTracksFilter}
         onMaxTracksFilterChange={setMaxTracksFilter}
       />

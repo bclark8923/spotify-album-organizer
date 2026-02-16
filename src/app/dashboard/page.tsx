@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import AlbumGrid from "@/components/AlbumGrid";
 import SpotifyPlayer from "@/components/SpotifyPlayer";
@@ -11,6 +11,7 @@ import AgentChat from "@/components/AgentChat";
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -46,9 +47,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#121212]">
-      <Navbar />
+      <Navbar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       <main className="flex-1 flex flex-col overflow-hidden">
-        <AlbumGrid />
+        <AlbumGrid searchQuery={searchQuery} />
       </main>
       <AgentChat />
       <SpotifyPlayer />
