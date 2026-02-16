@@ -3,39 +3,30 @@ import { SpotifyAlbum, SpotifyDevice } from "@/types";
 const SPOTIFY_API = "https://api.spotify.com/v1";
 
 async function fetchWithToken(url: string, accessToken: string, options?: RequestInit) {
-  const maxRetries = 3;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+  });
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-    });
-
-    if (res.status === 429 && attempt < maxRetries) {
-      const retryAfter = parseInt(res.headers.get("Retry-After") || "1", 10);
-      if (retryAfter > 60) {
-        const err = new Error("Spotify rate limit too long, please try again later");
-        (err as Error & { retryAfterSeconds: number }).retryAfterSeconds = retryAfter;
-        throw err;
-      }
-      const waitMs = retryAfter * 1000;
-      console.log(`[Spotify] Rate limited, retrying in ${retryAfter}s...`);
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
-      continue;
-    }
-
-    if (!res.ok) {
-      const error = await res.text();
-      throw new Error(`Spotify API error ${res.status}: ${error}`);
-    }
-
-    if (res.status === 204) return null;
-    return res.json();
+  if (res.status === 429) {
+    const retryAfter = parseInt(res.headers.get("Retry-After") || "60", 10);
+    console.log(`[Spotify] Rate limited (retry-after: ${retryAfter}s), not retrying`);
+    const err = new Error("Spotify rate limit — please try again later");
+    (err as Error & { retryAfterSeconds: number }).retryAfterSeconds = retryAfter;
+    throw err;
   }
+
+  if (!res.ok) {
+    const error = await res.text();
+    throw new Error(`Spotify API error ${res.status}: ${error}`);
+  }
+
+  if (res.status === 204) return null;
+  return res.json();
 }
 
 export async function getSavedAlbums(

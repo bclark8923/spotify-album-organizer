@@ -100,6 +100,21 @@ export async function GET(request: NextRequest) {
     await supabase.from("rate_limits").delete().eq("user_id", session.spotifyId);
   }
 
+  // Unless explicitly requesting a sync, return cached albums if available
+  // This prevents automatic page loads from hitting the Spotify API
+  const forceSync = source === "sync";
+  if (!forceSync) {
+    const { data: cachedAlbums } = await supabase
+      .from("saved_albums")
+      .select("*")
+      .eq("user_id", session.spotifyId)
+      .order("name");
+
+    if (cachedAlbums && cachedAlbums.length > 0) {
+      return NextResponse.json(rowsToAlbums(cachedAlbums));
+    }
+  }
+
   // Full sync: fetch from Spotify, upsert to Supabase, return all
   try {
     let accessToken = session.accessToken;

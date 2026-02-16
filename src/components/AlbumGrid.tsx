@@ -39,7 +39,6 @@ export default function AlbumGrid() {
   const [syncing, setSyncing] = useState(false);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumWithMetadata | null>(null);
   const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
   const [listenStatusFilter, setListenStatusFilter] = useState<"all" | "to_listen" | "listened" | "unset">("all");
@@ -50,7 +49,7 @@ export default function AlbumGrid() {
   const [syncWarningVisible, setSyncWarningVisible] = useState(false);
   const syncWarningTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const loadCachedAlbums = useCallback(async () => {
+  const loadCachedAlbums = useCallback(async (): Promise<SpotifyAlbum[]> => {
     try {
       const res = await fetch("/api/albums?source=cache");
       if (res.ok) {
@@ -58,17 +57,19 @@ export default function AlbumGrid() {
         if (data.length > 0) {
           setAlbums(data);
         }
+        return data;
       }
     } catch (error) {
       console.error("Failed to load cached albums:", error);
     }
+    return [];
   }, []);
 
   const syncAlbums = useCallback(async () => {
     setSyncing(true);
     setSyncWarning(null);
     try {
-      const res = await fetch("/api/albums");
+      const res = await fetch("/api/albums?source=sync");
       if (res.ok) {
         const data = await res.json();
         // Handle both array response (normal) and { albums, warning } (fallback)
@@ -132,25 +133,17 @@ export default function AlbumGrid() {
 
     const loadData = async () => {
       // Phase 1: load cached albums + tags + metadata from DB (fast)
-      await Promise.all([loadCachedAlbums(), fetchTags(), fetchMetadata()]);
+      const [cachedRes] = await Promise.all([loadCachedAlbums(), fetchTags(), fetchMetadata()]);
       setInitialLoadDone(true);
 
-      // Phase 2: sync from Spotify in the background
-      syncAlbums();
+      // Phase 2: only sync from Spotify if no cached albums (first signup)
+      // After the initial sync, users can manually sync via the Sync button
+      if (!cachedRes || cachedRes.length === 0) {
+        syncAlbums();
+      }
     };
 
     loadData();
-
-    // Auto-sync albums every 5 minutes to pick up newly saved albums
-    syncIntervalRef.current = setInterval(() => {
-      syncAlbums();
-    }, 5 * 60 * 1000);
-
-    return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-      }
-    };
   }, [session, loadCachedAlbums, syncAlbums, fetchTags, fetchMetadata]);
 
   // Auto-dismiss sync warning after 5 seconds

@@ -174,11 +174,12 @@ export default function SpotifyPlayerComponent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.accessToken]);
 
-  // Fetch playback state periodically when no SDK player
+  // Fetch playback state periodically as a fallback — the SDK's
+  // player_state_changed listener handles real-time updates when active
   useEffect(() => {
     if (isPremiumError || !session?.accessToken) return;
     fetchPlaybackState();
-    const interval = setInterval(fetchPlaybackState, 5000);
+    const interval = setInterval(fetchPlaybackState, 30000);
     return () => clearInterval(interval);
   }, [isPremiumError, session?.accessToken, fetchPlaybackState]);
 
