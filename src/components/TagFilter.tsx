@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Tag } from "@/types";
 
 interface TagFilterProps {
@@ -10,6 +11,52 @@ interface TagFilterProps {
   onListenStatusFilterChange: (filter: "all" | "to_listen" | "listened" | "unset") => void;
   maxTracksFilter: number | null;
   onMaxTracksFilterChange: (value: number | null) => void;
+}
+
+const TAG_PREVIEW_COUNT = 5;
+
+function TagList({
+  tags,
+  selectedTags,
+  onToggleTag,
+}: {
+  tags: Tag[];
+  selectedTags: string[];
+  onToggleTag: (tagId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleTags = expanded ? tags : tags.slice(0, TAG_PREVIEW_COUNT);
+  const hasMore = tags.length > TAG_PREVIEW_COUNT;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <span className="text-xs text-zinc-500 self-center mr-1">Tags:</span>
+      {visibleTags.map((tag) => (
+        <button
+          key={tag.id}
+          onClick={() => onToggleTag(tag.id)}
+          className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+            selectedTags.includes(tag.id)
+              ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+              : "bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-600"
+          }`}
+        >
+          {tag.name}
+        </button>
+      ))}
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="px-3 py-1 rounded-full text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+        >
+          {expanded ? "View less" : `+${tags.length - TAG_PREVIEW_COUNT} more`}
+        </button>
+      )}
+      {tags.length === 0 && (
+        <span className="text-xs text-zinc-600">No tags yet</span>
+      )}
+    </div>
+  );
 }
 
 export default function TagFilter({
@@ -64,25 +111,7 @@ export default function TagFilter({
       </div>
 
       {/* Tag filters */}
-      <div className="flex flex-wrap gap-2">
-        <span className="text-xs text-zinc-500 self-center mr-1">Tags:</span>
-        {tags.map((tag) => (
-          <button
-            key={tag.id}
-            onClick={() => onToggleTag(tag.id)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              selectedTags.includes(tag.id)
-                ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
-                : "bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-600"
-            }`}
-          >
-            {tag.name}
-          </button>
-        ))}
-        {tags.length === 0 && (
-          <span className="text-xs text-zinc-600">No tags yet</span>
-        )}
-      </div>
+      <TagList tags={tags} selectedTags={selectedTags} onToggleTag={onToggleTag} />
     </div>
   );
 }
