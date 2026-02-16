@@ -115,6 +115,44 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Enforce sync rate limits: max 3 per 30s, max 50 per 24h
+  const now = new Date();
+  const thirtySecsAgo = new Date(now.getTime() - 30 * 1000).toISOString();
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+  const [{ count: recentCount }, { count: dailyCount }] = await Promise.all([
+    supabase
+      .from("sync_log")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", session.spotifyId)
+      .gte("synced_at", thirtySecsAgo),
+    supabase
+      .from("sync_log")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", session.spotifyId)
+      .gte("synced_at", twentyFourHoursAgo),
+  ]);
+
+  const BURST_LIMIT = 3;
+  const DAILY_LIMIT = 50;
+
+  if ((recentCount ?? 0) >= BURST_LIMIT || (dailyCount ?? 0) >= DAILY_LIMIT) {
+    const warning = (recentCount ?? 0) >= BURST_LIMIT
+      ? "Sync limit reached (3 per 30 seconds). Showing cached albums."
+      : `Daily sync limit reached (${DAILY_LIMIT} per day). Showing cached albums.`;
+
+    const { data: cachedAlbums } = await supabase
+      .from("saved_albums")
+      .select("*")
+      .eq("user_id", session.spotifyId)
+      .order("name");
+
+    return NextResponse.json({
+      albums: cachedAlbums && cachedAlbums.length > 0 ? rowsToAlbums(cachedAlbums) : [],
+      warning,
+    });
+  }
+
   // Full sync: fetch from Spotify, upsert to Supabase, return all
   try {
     let accessToken = session.accessToken;
@@ -181,6 +219,9 @@ export async function GET(request: NextRequest) {
         }
       }
     }
+
+    // Record this sync for rate limiting
+    await supabase.from("sync_log").insert({ user_id: session.spotifyId });
 
     // Return all albums from Supabase (includes previously saved albums)
     const { data: allAlbums } = await supabase

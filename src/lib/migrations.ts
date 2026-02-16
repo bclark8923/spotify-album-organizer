@@ -51,6 +51,17 @@ const migrations: Migration[] = [
       );
     `,
   },
+  {
+    name: "004_add_sync_log",
+    sql: `
+      CREATE TABLE IF NOT EXISTS sync_log (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        synced_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_sync_log_user_time ON sync_log(user_id, synced_at);
+    `,
+  },
 ];
 
 let migrationRan = false;
