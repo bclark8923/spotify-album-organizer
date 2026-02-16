@@ -9,8 +9,6 @@ interface TagFilterProps {
   onToggleTag: (tagId: string) => void;
   listenStatusFilter: "all" | "to_listen" | "listened" | "unset";
   onListenStatusFilterChange: (filter: "all" | "to_listen" | "listened" | "unset") => void;
-  maxTracksFilter: number | null;
-  onMaxTracksFilterChange: (value: number | null) => void;
 }
 
 const TAG_PREVIEW_COUNT = 5;
@@ -65,8 +63,6 @@ export default function TagFilter({
   onToggleTag,
   listenStatusFilter,
   onListenStatusFilterChange,
-  maxTracksFilter,
-  onMaxTracksFilterChange,
 }: TagFilterProps) {
   return (
     <div className="flex flex-col gap-4 p-4 bg-zinc-900 border-b border-zinc-800">
@@ -93,21 +89,6 @@ export default function TagFilter({
             {label}
           </button>
         ))}
-      </div>
-
-      {/* Track count filter */}
-      <div className="flex flex-wrap gap-2">
-        <span className="text-xs text-zinc-500 self-center mr-1">Tracks:</span>
-        <button
-          onClick={() => onMaxTracksFilterChange(maxTracksFilter === 5 ? null : 5)}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-            maxTracksFilter === 5
-              ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-              : "bg-zinc-800 text-zinc-400 border border-zinc-700 hover:border-zinc-600"
-          }`}
-        >
-          &lt; 5 tracks
-        </button>
       </div>
 
       {/* Tag filters */}

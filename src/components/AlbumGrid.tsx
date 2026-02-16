@@ -46,8 +46,8 @@ export default function AlbumGrid({ searchQuery }: AlbumGridProps) {
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumWithMetadata | null>(null);
   const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
   const [listenStatusFilter, setListenStatusFilter] = useState<"all" | "to_listen" | "listened" | "unset">("all");
-  const [sortBy, setSortBy] = useState<"name" | "artist" | "date" | "rating">("rating");
-  const [maxTracksFilter, setMaxTracksFilter] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<"name" | "artist" | "date" | "rating" | "tracks" | "duration">("rating");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [syncWarningVisible, setSyncWarningVisible] = useState(false);
   const syncWarningTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -211,11 +211,6 @@ export default function AlbumGrid({ searchQuery }: AlbumGridProps) {
       );
     }
 
-    // Track count filter
-    if (maxTracksFilter !== null) {
-      result = result.filter((a) => a.total_tracks < maxTracksFilter);
-    }
-
     // Listen status filter
     if (listenStatusFilter !== "all") {
       result = result.filter((a) => {
@@ -225,23 +220,28 @@ export default function AlbumGrid({ searchQuery }: AlbumGridProps) {
     }
 
     // Sort
+    const dir = sortDir === "asc" ? 1 : -1;
     result = [...result].sort((a, b) => {
       switch (sortBy) {
         case "name":
-          return a.name.localeCompare(b.name);
+          return dir * a.name.localeCompare(b.name);
         case "artist":
-          return (a.artists[0]?.name || "").localeCompare(b.artists[0]?.name || "");
+          return dir * (a.artists[0]?.name || "").localeCompare(b.artists[0]?.name || "");
         case "date":
-          return b.release_date.localeCompare(a.release_date);
+          return dir * a.release_date.localeCompare(b.release_date);
         case "rating":
-          return (b.metadata?.rating ?? -1) - (a.metadata?.rating ?? -1);
+          return dir * ((a.metadata?.rating ?? -1) - (b.metadata?.rating ?? -1));
+        case "tracks":
+          return dir * (a.total_tracks - b.total_tracks);
+        case "duration":
+          return dir * ((a.duration_ms || 0) - (b.duration_ms || 0));
         default:
           return 0;
       }
     });
 
     return result;
-  }, [enrichedAlbums, searchQuery, selectedTagFilters, listenStatusFilter, maxTracksFilter, sortBy]);
+  }, [enrichedAlbums, searchQuery, selectedTagFilters, listenStatusFilter, sortBy, sortDir]);
 
   const handleUpdateMetadata = async (
     albumId: string,
@@ -345,8 +345,6 @@ export default function AlbumGrid({ searchQuery }: AlbumGridProps) {
         }
         listenStatusFilter={listenStatusFilter}
         onListenStatusFilterChange={setListenStatusFilter}
-        maxTracksFilter={maxTracksFilter}
-        onMaxTracksFilterChange={setMaxTracksFilter}
       />
 
       {/* Sort + count bar */}
@@ -394,22 +392,34 @@ export default function AlbumGrid({ searchQuery }: AlbumGridProps) {
           <span className="text-xs text-zinc-500">Sort:</span>
           {(
             [
-              { key: "name", label: "Name" },
-              { key: "artist", label: "Artist" },
-              { key: "date", label: "Date" },
-              { key: "rating", label: "Rating" },
+              { key: "name", label: "Name", defaultDir: "asc" as const },
+              { key: "artist", label: "Artist", defaultDir: "asc" as const },
+              { key: "date", label: "Date", defaultDir: "desc" as const },
+              { key: "rating", label: "Rating", defaultDir: "desc" as const },
+              { key: "tracks", label: "Tracks", defaultDir: "asc" as const },
+              { key: "duration", label: "Duration", defaultDir: "asc" as const },
             ] as const
-          ).map(({ key, label }) => (
+          ).map(({ key, label, defaultDir }) => (
             <button
               key={key}
-              onClick={() => setSortBy(key)}
-              className={`px-2 py-1 rounded text-xs transition-colors cursor-pointer ${
+              onClick={() => {
+                if (sortBy === key) {
+                  setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                } else {
+                  setSortBy(key);
+                  setSortDir(defaultDir);
+                }
+              }}
+              className={`px-2 py-1 rounded text-xs transition-colors cursor-pointer flex items-center gap-1 ${
                 sortBy === key
                   ? "bg-zinc-700 text-white"
                   : "text-zinc-500 hover:text-zinc-300"
               }`}
             >
               {label}
+              {sortBy === key && (
+                <span className="text-[10px]">{sortDir === "asc" ? "\u25B2" : "\u25BC"}</span>
+              )}
             </button>
           ))}
         </div>
